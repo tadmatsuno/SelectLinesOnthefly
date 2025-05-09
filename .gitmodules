@@ -1,0 +1,3 @@
+[submodule "line_selections"]
+	path = line_selections
+	url = https://gitlab.oca.eu/gkordo/line_selections.git
