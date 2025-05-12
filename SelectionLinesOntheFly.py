@@ -8,9 +8,6 @@ jl.include("./MakeElementSpectra.jl")
 #jl.seval("using Korg")
 #Korg = jl.Korg
 
-available_models = {\
-    (4750, 1.5, -1.0): "s4750_g+1.5_m1.0_t02_an_z-1.00_a-0.40_c+0.00_n+0.00_o-0.40_r+0.00_s+0.00.mod",
-    }
 
 def ElementalSpectra(marcs_model, feh, element, wvl_min, wvl_max, resolution, 
     A_X_dict={}, vt=1.0, linelist = None, ion=0):
@@ -57,32 +54,99 @@ def ElementalSpectra(marcs_model, feh, element, wvl_min, wvl_max, resolution,
 
     return wvl.to_numpy(), flx_full.to_numpy(), flx_elem.to_numpy(),lines_species
 
-def run_select_lines(marcs_model, feh, element, wvl_min, wvl_max, resolution, 
-    A_X_dict={}, vt=1.0, linelist = None, ion=0):
+def run_select_lines(marcs_model, feh, teff, element, wvl_min, wvl_max, resolution, 
+    A_X_dict={}, vt=1.0, linelist = None, ion=0, snr=200, min_purity = 0.5):
+    """ 
+    Linelist can either be a .h5 file that contains a Korg linelist or 
+    a dictionary with (Species, wl, Echi, log_gf).
+    The Species format has to be supported by Korg, 
+    e.g., "Fe I", "Fe 1", "Fe_1", "Fe.I" or MOOG format BUT WITHOUT ISOTOPES.
+    """
+    
     wvl, flx_full, flx_elem, lines_species = ElementalSpectra(marcs_model, \
         feh, \
         element, 
         wvl_min, wvl_max, resolution,
         A_X_dict=A_X_dict, vt=vt, linelist=linelist, ion=ion)
+    
     sp_full = pandas.DataFrame({"ll":wvl,"flux":flx_full})
     sp_elem = pandas.DataFrame({"ll":wvl,"flux":flx_elem})
     linelist_pd_sp = pandas.DataFrame({\
         key: getattr(lines_species,key) for key in ["ll","Echi","loggf"]})
-#    return sp_full, sp_elem, linelist_pd
-#    print(linelist_pd)
-    return select_lines.select_lines(sp_full, sp_elem, 4750, linelist_pd_sp, 0.0, Resolution=resolution, SNR=200, sampling=0.01)
 
-marcs_model = "./model_atms/s4750_g+1.5_m1.0_t02_an_z-1.00_a-0.40_c+0.00_n+0.00_o-0.40_r+0.00_s+0.00.mod"
+    select_lines_results = select_lines.select_lines(\
+        sp_full, sp_elem, teff, linelist_pd_sp, min_purity, Resolution=resolution, 
+        SNR=snr, sampling=0.01)
+    return sp_full,sp_elem,select_lines_results
 
-run_select_lines(marcs_model, -1.0, "Th", 4000, 4500, 50000, A_X_dict={"Th":-0.98}, vt=1.0,ion=1)
 
-sp1,sp2 = run_select_lines(marcs_model, -1.0, "Th", 4000, 4500, 50000, A_X_dict={"Th":-0.98}, vt=1.0,ion=1)
-plt.plot(sp1["ll"],sp1["flux"])
-plt.plot(sp2["ll"],sp2["flux"])
-#plt.xlim(4015,4025)
+def example():
+    """
+    Example of how to use the function.
+    """
+    
+    model = "./model_atms/feh-2.00/teff4750_logg1.5.mod"
+    sp_full, sp_elem, results = run_select_lines(
+        model, 
+        feh = -2.0, 
+        teff = 4750, # There should be a better way to get Teff and feh from the model atmosphere.
+        element="Th", # Create a result for Th
+        wvl_min=4000, 
+        wvl_max=4200, 
+        resolution=50000,
+        A_X_dict={"Eu":-0.48,"Th":-0.98},# A(Eu)=-0.48, A(Th) = -0.98, [Eu/Fe]=[Th/Fe] = 1.
+        vt=1.0,
+        linelist=None, # None means use the default VALD linelist
+        ion = 1 # This limits to Th II
+        )
+    print(results)
+    
+    fig, axs = plt.subplots(len(results),1, figsize=(10,5*len(results)))
+    for idx,ax in zip(results.index,axs):
+        plt.sca(ax)            
+        plt.plot(sp_full["ll"],sp_full["flux"],label="Full")
+        plt.plot(sp_elem["ll"],sp_elem["flux"],label="Element")
+        plt.xlim(results.loc[idx,"Bluewidth"]-1.0,results.loc[idx,"Redwidth"]+1.0)
+        plt.fill_betweenx([0.0,1.5],results.loc[idx,"Bluewidth"],results.loc[idx,"Redwidth"],alpha=0.2,color="C7")
+        plt.ylim(results.loc[idx,"fmin_sp"]*0.9,1.1)
+        plt.legend()
+        
+def example2():
+    """
+    Example2 with a custom linelist.
+    """
+    linelist = pandas.read_csv("./linelist/linelist5989_published.csv")
+    linelist = linelist.to_dict(orient="list")
+    print(linelist)
+    
+    model = "./model_atms/feh-2.00/teff4750_logg1.5.mod"
+    sp_full, sp_elem, results = run_select_lines(
+        model, 
+        feh = -2.0, 
+        teff = 4750, # There should be a better way to get Teff and feh from the model atmosphere.
+        element="Th", # Create a result for Th
+        wvl_min=5980, 
+        wvl_max=6000, 
+        resolution=50000,
+        A_X_dict={"Eu":-0.48,"Th":-0.98},# A(Eu)=-0.48, A(Th) = -0.98, [Eu/Fe]=[Th/Fe] = 1.
+        vt=1.0,
+        linelist=linelist,
+        ion = 1 # This limits to Th II
+        )
+    print(results)
+    
+    fig, axs = plt.subplots(len(results),1, figsize=(10,5*len(results)))
+    axs = np.atleast_1d(axs)
+    for idx,ax in zip(results.index,axs):
+        plt.sca(ax)            
+        plt.plot(sp_full["ll"],sp_full["flux"],label="Full")
+        plt.plot(sp_elem["ll"],sp_elem["flux"],label="Element")
+        plt.xlim(results.loc[idx,"Bluewidth"]-1.0,results.loc[idx,"Redwidth"]+1.0)
+        plt.fill_betweenx([0.0,1.5],results.loc[idx,"Bluewidth"],results.loc[idx,"Redwidth"],alpha=0.2,color="C7")
+        plt.ylim(results.loc[idx,"fmin_sp"]*0.9,1.1)
+        plt.legend()
 
-run_select_lines(marcs_model, -1.0, "Th", 4000, 4500, 50000, A_X_dict={"Th":0.02}, vt=1.0,ion=1)
-sp1,sp2 = run_select_lines(marcs_model, -1.0, "Th", 4000, 4500, 50000, A_X_dict={"Th":0.02}, vt=1.0,ion=1)
-plt.plot(sp1["ll"],sp1["flux"])
-plt.plot(sp2["ll"],sp2["flux"])
-#plt.xlim(4015,4025)
+
+example()    
+
+example2()
