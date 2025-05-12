@@ -39,7 +39,7 @@ function ElementalSpectra(
     resolution;
     A_X_dict=Dict{String,Float64}(),
     vt=1.0,
-    linelist::Union{Nothing, String} = nothing,
+    linelist::Union{Nothing, String, PyDict, Dict} = nothing,
     ion = 0
 )
 
@@ -48,9 +48,11 @@ wvl_max = Korg.air_to_vacuum(wvl_max)
 
 if linelist === nothing
     linelist = "./linelist/valdall.h5"
+    lines = Korg.read_linelist(linelist)
+else
+    lines = Korg.Line.(Korg.air_to_vacuum.(linelist["wl"]), linelist["log_gf"], Korg.Species.(linelist["Species"]), linelist["E_lower"])
 end
 
-lines = Korg.read_linelist(linelist)
 model_atm = Korg.read_model_atmosphere(marcs_model)
 input_abundances = Korg.format_A_X(feh, A_X_dict, solar_relative=false)
 
