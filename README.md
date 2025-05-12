@@ -3,7 +3,7 @@ Kordopatis et al. (2023) with on-the-fly spectral synthesis with Korg. See examp
 A user would need to install 
 - Korg (see https://ajwheeler.github.io/Korg.jl/stable/install/ for the installation instruction.)
 - Glob, DataFrames in julia
-  - in julia, one can do using
+  - in julia, one can install them using
     - using Pkg
     - Pkg.add("Glob")
     - Pkg.add("DataFrames")
