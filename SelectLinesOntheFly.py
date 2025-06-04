@@ -146,7 +146,7 @@ def example2():
         plt.ylim(results.loc[idx,"fmin_sp"]*0.9,1.1)
         plt.legend()
 
+if __name__ == "__main__":
+    example()    
 
-example()    
-
-example2()
+    example2()

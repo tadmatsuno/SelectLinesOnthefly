@@ -31,7 +31,7 @@ ready for use with Georges Kordopatis’s line selection code.
 - `ion::Vector{Int}` : ionization stages to include (default = [1,2])
 """
 function ElementalSpectra(
-    marcs_model :: String,
+    marcs_model :: Union{String,Korg.ModelAtmosphere},
     feh,
     element::String,
     wvl_min,
@@ -53,7 +53,11 @@ else
     lines = Korg.Line.(Korg.air_to_vacuum.(linelist["wl"]), linelist["log_gf"], Korg.Species.(linelist["Species"]), linelist["E_lower"])
 end
 
-model_atm = Korg.read_model_atmosphere(marcs_model)
+if marcs_model isa String
+    model_atm = Korg.read_model_atmosphere(marcs_model)
+else
+    model_atm = marcs_model
+end
 input_abundances = Korg.format_A_X(feh, A_X_dict, solar_relative=false)
 
 full_sp = Korg.synthesize(model_atm, lines, input_abundances, wvl_min, wvl_max, vmic=vt)
