@@ -1,4 +1,4 @@
-Kordopatis et al. (2023) with on-the-fly spectral synthesis with Korg. See examples in SelectOntheFly.py.
+Kordopatis et al. (2023) with on-the-fly spectral synthesis with Korg. See examples in SelectLinesOntheFly.py.
 
 A user would need to install 
 - Korg (see https://ajwheeler.github.io/Korg.jl/stable/install/ for the installation instruction.)
